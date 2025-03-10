@@ -22,6 +22,7 @@ import {
   Cell,
   ComposedChart,
   Area,
+  Customized
 } from "recharts";
 import Papa from "papaparse";
 
@@ -31,8 +32,20 @@ export default function HappinessDashboard() {
   const [error, setError] = useState(null);
   const [selectedCountries, setSelectedCountries] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
-  const [selectedYears, setSelectedYears] = useState(["2020", "2021", "2022", "2023", "2024"]);
-  const [availableYears, setAvailableYears] = useState(["2020", "2021", "2022", "2023", "2024"]);
+  const [selectedYears, setSelectedYears] = useState([
+    "2020",
+    "2021",
+    "2022",
+    "2023",
+    "2024",
+  ]);
+  const [availableYears, setAvailableYears] = useState([
+    "2020",
+    "2021",
+    "2022",
+    "2023",
+    "2024",
+  ]);
   const [yearData, setYearData] = useState({});
   const [activeYear, setActiveYear] = useState("2020");
   const [isComparing, setIsComparing] = useState(false);
@@ -53,11 +66,73 @@ export default function HappinessDashboard() {
 
   // Year colors for consistent coloring
   const yearColors = {
-    "2020": "#8884d8",
-    "2021": "#82ca9d",
-    "2022": "#ffc658",
-    "2023": "#ff8042",
-    "2024": "#ff6361",
+    2020: "#2D7FF9", // Bright blue
+    2021: "#18D26E", // Bright green
+    2022: "#FFD500", // Bright yellow
+    2023: "#FF6B6B", // Bright red/coral
+    2024: "#C04CFD", // Bright purple
+  };
+
+  const CustomTooltip = ({
+    active,
+    payload,
+    label,
+    isComparing,
+    yearData,
+    selectedYears,
+    yearColors,
+  }) => {
+    if (!active || !payload || payload.length === 0) return null;
+
+    const rank = label;
+
+    return (
+      <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-md">
+        <p className="font-bold text-gray-800 border-b pb-1 mb-2">{`Rank: ${rank}`}</p>
+
+        {isComparing ? (
+          <div className="space-y-1">
+            {selectedYears.map((year) => {
+              const yearDataSorted = [...(yearData[year] || [])].sort(
+                (a, b) => b.score - a.score
+              );
+              const countryData = yearDataSorted[rank - 1];
+
+              if (!countryData) return null;
+
+              return (
+                <div key={year} className="flex items-center">
+                  <div
+                    className="w-3 h-3 rounded-full mr-2"
+                    style={{ backgroundColor: yearColors[year] }}
+                  ></div>
+                  <p className="text-sm">
+                    <span className="font-medium">{`${year}- `}</span>
+                    <span>{`${countryData.country}: `}</span>
+                    <span className="font-semibold">{`${countryData.score.toFixed(
+                      2
+                    )}`}</span>
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center">
+            <div
+              className="w-3 h-3 rounded-full mr-2"
+              style={{ backgroundColor: payload[0].stroke }}
+            ></div>
+            <p className="text-sm">
+              <span>{`${payload[0].payload.country}: `}</span>
+              <span className="font-semibold">{`${payload[0].payload.score.toFixed(
+                2
+              )}`}</span>
+            </p>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Fetch and parse CSV data for all years
@@ -66,15 +141,15 @@ export default function HappinessDashboard() {
       setLoading(true);
       try {
         const years = ["2020", "2021", "2022", "2023", "2024"];
-        const dataPromises = years.map(year => fetchYearData(year));
-        
+        const dataPromises = years.map((year) => fetchYearData(year));
+
         // Wait for all data to be fetched
         const results = await Promise.allSettled(dataPromises);
-        
+
         // Process results
         const successfulYears = [];
         const allYearData = {};
-        
+
         results.forEach((result, index) => {
           if (result.status === "fulfilled" && result.value.data.length > 0) {
             const year = years[index];
@@ -82,17 +157,17 @@ export default function HappinessDashboard() {
             allYearData[year] = result.value.data;
           }
         });
-        
+
         setAvailableYears(successfulYears);
         setYearData(allYearData);
-        
+
         // Set active year to the most recent available year
         if (successfulYears.length > 0) {
           const mostRecentYear = successfulYears[successfulYears.length - 1];
           setActiveYear(mostRecentYear);
           setData(allYearData[mostRecentYear]);
         }
-        
+
         setLoading(false);
       } catch (err) {
         setError("Failed to load data: " + err.message);
@@ -111,7 +186,7 @@ export default function HappinessDashboard() {
         throw new Error(`Failed to fetch ${year} data`);
       }
       const csvText = await response.text();
-      
+
       return new Promise((resolve, reject) => {
         Papa.parse(csvText, {
           header: true,
@@ -139,7 +214,7 @@ export default function HappinessDashboard() {
                 ),
                 year: year,
               }));
-            
+
             resolve({ data: cleanedData });
           },
           error: (error) => {
@@ -157,10 +232,8 @@ export default function HappinessDashboard() {
   const handleYearChange = (year) => {
     if (isComparing) {
       // For comparison mode, toggle the year in selectedYears
-      setSelectedYears(prev => 
-        prev.includes(year) 
-          ? prev.filter(y => y !== year) 
-          : [...prev, year]
+      setSelectedYears((prev) =>
+        prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
       );
     } else {
       // For single year mode, set the active year
@@ -184,9 +257,9 @@ export default function HappinessDashboard() {
   // Get combined data for selected years
   const combinedData = useMemo(() => {
     if (!isComparing) return data;
-    
+
     let combined = [];
-    selectedYears.forEach(year => {
+    selectedYears.forEach((year) => {
       if (yearData[year]) {
         combined = [...combined, ...yearData[year]];
       }
@@ -199,15 +272,15 @@ export default function HappinessDashboard() {
     if (isComparing) {
       // For comparison mode, get top countries for each selected year
       const topByYear = {};
-      selectedYears.forEach(year => {
+      selectedYears.forEach((year) => {
         if (yearData[year]) {
           topByYear[year] = [...yearData[year]]
             .sort((a, b) => b.score - a.score)
             .slice(0, 10)
-            .map(country => ({...country, year}));
+            .map((country) => ({ ...country, year }));
         }
       });
-      
+
       // Flatten the results
       return Object.values(topByYear).flat();
     } else {
@@ -221,15 +294,15 @@ export default function HappinessDashboard() {
     if (isComparing) {
       // For comparison mode, get bottom countries for each selected year
       const bottomByYear = {};
-      selectedYears.forEach(year => {
+      selectedYears.forEach((year) => {
         if (yearData[year]) {
           bottomByYear[year] = [...yearData[year]]
             .sort((a, b) => a.score - b.score)
             .slice(0, 10)
-            .map(country => ({...country, year}));
+            .map((country) => ({ ...country, year }));
         }
       });
-      
+
       // Flatten the results
       return Object.values(bottomByYear).flat();
     } else {
@@ -253,13 +326,15 @@ export default function HappinessDashboard() {
 
     return factors.map((factor) => {
       const factorData = { factor };
-      
+
       if (isComparing) {
         // For comparison mode, include data for each country and year
         selectedCountries.forEach((country) => {
-          selectedYears.forEach(year => {
+          selectedYears.forEach((year) => {
             if (yearData[year]) {
-              const countryData = yearData[year].find(item => item.country === country);
+              const countryData = yearData[year].find(
+                (item) => item.country === country
+              );
               if (countryData) {
                 factorData[`${country} (${year})`] = countryData[factor];
               }
@@ -275,7 +350,7 @@ export default function HappinessDashboard() {
           }
         });
       }
-      
+
       return factorData;
     });
   }, [data, selectedCountries, isComparing, selectedYears, yearData]);
@@ -294,13 +369,15 @@ export default function HappinessDashboard() {
   // Prepare trend data for countries over years
   const trendData = useMemo(() => {
     if (selectedCountries.length === 0) return [];
-    
+
     const countryTrends = [];
-    
-    selectedCountries.forEach(country => {
-      availableYears.forEach(year => {
+
+    selectedCountries.forEach((country) => {
+      availableYears.forEach((year) => {
         if (yearData[year]) {
-          const countryData = yearData[year].find(item => item.country === country);
+          const countryData = yearData[year].find(
+            (item) => item.country === country
+          );
           if (countryData) {
             countryTrends.push({
               country,
@@ -317,7 +394,7 @@ export default function HappinessDashboard() {
         }
       });
     });
-    
+
     return countryTrends;
   }, [selectedCountries, availableYears, yearData]);
 
@@ -332,19 +409,39 @@ export default function HappinessDashboard() {
   };
 
   // Get average happiness score by year
-  const averageScoreByYear = useMemo(() => {
-    const averages = [];
-    availableYears.forEach(year => {
+  const scoresByYear = useMemo(() => {
+    const scores = [];
+    availableYears.forEach((year) => {
       if (yearData[year] && yearData[year].length > 0) {
-        const avg = yearData[year].reduce((sum, item) => sum + item.score, 0) / yearData[year].length;
-        averages.push({
+        const yearScores = yearData[year].map(item => item.score);
+        
+        const avg = yearScores.reduce((sum, score) => sum + score, 0) / yearScores.length;
+        const highest = Math.max(...yearScores);
+        const lowest = Math.min(...yearScores);
+        
+        scores.push({
           year,
-          score: avg,
+          average: avg,
+          highest: highest,
+          lowest: lowest
         });
       }
     });
-    return averages;
+    return scores;
   }, [availableYears, yearData]);
+
+  const customTooltipFormatterTrends = (value, name) => {
+    const formattedValue = value.toFixed(2);
+    
+    // Map data key names to display names
+    const nameMap = {
+      average: 'Average Score',
+      highest: 'Highest Score',
+      lowest: 'Lowest Score'
+    };
+    
+    return [formattedValue, nameMap[name] || name];
+  };
 
   if (loading) {
     return (
@@ -376,7 +473,7 @@ export default function HappinessDashboard() {
             Interactive visualization of the World Happiness Report data
             (2020-2024)
           </p>
-          
+
           {/* Year selector */}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <div className="flex items-center">
@@ -394,8 +491,8 @@ export default function HappinessDashboard() {
                           ? "bg-blue-600 text-white"
                           : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                         : activeYear === year
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        ? "bg-blue-600 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
                     }`}
                   >
                     {year}
@@ -403,7 +500,7 @@ export default function HappinessDashboard() {
                 ))}
               </div>
             </div>
-            
+
             <button
               onClick={toggleComparisonMode}
               className={`ml-auto px-4 py-1 text-sm rounded-md transition-colors ${
@@ -434,7 +531,7 @@ export default function HappinessDashboard() {
               >
                 Overview
               </button>
-              <button
+              {/* <button
                 onClick={() => setActiveTab("factors")}
                 className={`${
                   activeTab === "factors"
@@ -443,7 +540,7 @@ export default function HappinessDashboard() {
                 } whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm`}
               >
                 Happiness Factors
-              </button>
+              </button> */}
               <button
                 onClick={() => setActiveTab("comparison")}
                 className={`${
@@ -484,40 +581,7 @@ export default function HappinessDashboard() {
           {activeTab === "overview" && (
             <div className="space-y-6">
               {/* Global Trends Section */}
-              {isComparing && availableYears.length > 1 && (
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-1">
-                    Global Happiness Trends
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Average happiness score across all countries by year
-                  </p>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        data={averageScoreByYear}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="year" />
-                        <YAxis domain={[0, 10]} />
-                        <Tooltip formatter={(value) => value.toFixed(2)} />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#8884d8"
-                          name="Average Happiness Score"
-                          strokeWidth={2}
-                          dot={{ r: 6 }}
-                          activeDot={{ r: 8 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
-              
+
               <div className="bg-white p-6 rounded-lg shadow">
                 <h2 className="text-xl font-semibold mb-1">
                   Top 10 Happiest Countries
@@ -541,7 +605,7 @@ export default function HappinessDashboard() {
                         tick={{ fontSize: 12 }}
                         width={120}
                       />
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value) => value.toFixed(2)}
                         labelFormatter={(label, payload) => {
                           if (isComparing && payload && payload.length > 0) {
@@ -559,7 +623,11 @@ export default function HappinessDashboard() {
                         {topCountries.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={isComparing ? yearColors[entry.year] : colors[index % colors.length]}
+                            fill={
+                              isComparing
+                                ? yearColors[entry.year]
+                                : colors[index % colors.length]
+                            }
                           />
                         ))}
                       </Bar>
@@ -591,7 +659,7 @@ export default function HappinessDashboard() {
                         tick={{ fontSize: 12 }}
                         width={120}
                       />
-                      <Tooltip 
+                      <Tooltip
                         formatter={(value) => value.toFixed(2)}
                         labelFormatter={(label, payload) => {
                           if (isComparing && payload && payload.length > 0) {
@@ -609,7 +677,11 @@ export default function HappinessDashboard() {
                         {bottomCountries.map((entry, index) => (
                           <Cell
                             key={`cell-${index}`}
-                            fill={isComparing ? yearColors[entry.year] : colors[(9 - index) % colors.length]}
+                            fill={
+                              isComparing
+                                ? yearColors[entry.year]
+                                : colors[(9 - index) % colors.length]
+                            }
                           />
                         ))}
                       </Bar>
@@ -629,29 +701,51 @@ export default function HappinessDashboard() {
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Highest Score</p>
                       <p className="text-2xl font-bold">
-                        {Math.max(...combinedData.map((item) => item.score)).toFixed(2)}
+                        {Math.max(
+                          ...combinedData.map((item) => item.score)
+                        ).toFixed(2)}
                       </p>
                       <p className="text-sm text-gray-700">
-                        {combinedData.sort((a, b) => b.score - a.score)[0]?.country}
-                        {isComparing && combinedData.length > 0 && ` (${combinedData.sort((a, b) => b.score - a.score)[0]?.year})`}
+                        {
+                          combinedData.sort((a, b) => b.score - a.score)[0]
+                            ?.country
+                        }
+                        {isComparing &&
+                          combinedData.length > 0 &&
+                          ` (${
+                            combinedData.sort((a, b) => b.score - a.score)[0]
+                              ?.year
+                          })`}
                       </p>
                     </div>
                     <div className="bg-green-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Lowest Score</p>
                       <p className="text-2xl font-bold">
-                        {Math.min(...combinedData.map((item) => item.score)).toFixed(2)}
+                        {Math.min(
+                          ...combinedData.map((item) => item.score)
+                        ).toFixed(2)}
                       </p>
                       <p className="text-sm text-gray-700">
-                        {combinedData.sort((a, b) => a.score - b.score)[0]?.country}
-                        {isComparing && combinedData.length > 0 && ` (${combinedData.sort((a, b) => a.score - b.score)[0]?.year})`}
+                        {
+                          combinedData.sort((a, b) => a.score - b.score)[0]
+                            ?.country
+                        }
+                        {isComparing &&
+                          combinedData.length > 0 &&
+                          ` (${
+                            combinedData.sort((a, b) => a.score - b.score)[0]
+                              ?.year
+                          })`}
                       </p>
                     </div>
                     <div className="bg-purple-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-500">Average Score</p>
                       <p className="text-2xl font-bold">
                         {(
-                          combinedData.reduce((sum, item) => sum + item.score, 0) /
-                          combinedData.length
+                          combinedData.reduce(
+                            (sum, item) => sum + item.score,
+                            0
+                          ) / combinedData.length
                         ).toFixed(2)}
                       </p>
                     </div>
@@ -659,7 +753,9 @@ export default function HappinessDashboard() {
                       <p className="text-sm text-gray-500">
                         {isComparing ? "Total Data Points" : "Total Countries"}
                       </p>
-                      <p className="text-2xl font-bold">{combinedData.length}</p>
+                      <p className="text-2xl font-bold">
+                        {combinedData.length}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -684,6 +780,7 @@ export default function HappinessDashboard() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis
                           dataKey="index"
+                          allowDuplicatedCategory={false}
                           label={{
                             value: "Country Rank",
                             position: "insideBottom",
@@ -696,22 +793,28 @@ export default function HappinessDashboard() {
                             value: "Happiness Score",
                             angle: -90,
                             position: "insideLeft",
+                            offset: 15,
+                            style: { textAnchor: "middle" },
                           }}
                         />
                         <Tooltip
-                          formatter={(value) => value.toFixed(2)}
-                          labelFormatter={(index) => {
-                            const item = combinedData.sort((a, b) => b.score - a.score)[index];
-                            return item ? `${item.country}${isComparing ? ` (${item.year})` : ''}` : '';
-                          }}
+                          content={
+                            <CustomTooltip
+                              isComparing={isComparing}
+                              yearData={yearData}
+                              selectedYears={selectedYears}
+                              yearColors={yearColors}
+                            />
+                          }
                         />
+
                         {isComparing ? (
                           selectedYears.map((year, idx) => (
                             <Line
                               key={year}
                               type="monotone"
                               dataKey="score"
-                              data={[...yearData[year] || []]
+                              data={[...(yearData[year] || [])]
                                 .sort((a, b) => b.score - a.score)
                                 .map((item, index) => ({ ...item, index }))}
                               stroke={yearColors[year]}
@@ -728,6 +831,10 @@ export default function HappinessDashboard() {
                             name={`${activeYear} Scores`}
                           />
                         )}
+
+                        {isComparing && (
+                          <Legend verticalAlign="top" height={36} />
+                        )}
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -736,276 +843,6 @@ export default function HappinessDashboard() {
             </div>
           )}
 
-          {/* Factors Tab */}
-          {activeTab === "factors" && (
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-semibold mb-1">
-                  Average Factor Values
-                  {!isComparing && ` (${activeYear})`}
-                </h2>
-                <p className="text-sm text-gray-500 mb-4">
-                  Comparison of average values for each happiness factor
-                  globally
-                </p>
-                <div className="h-80">
-                  {isComparing ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={[
-                          { name: "GDP", ...selectedYears.reduce((acc, year) => {
-                            if (yearData[year]) {
-                              acc[year] = yearData[year].reduce((sum, item) => sum + item.gdp, 0) / yearData[year].length;
-                            }
-                            return acc;
-                          }, {}) },
-                          { name: "Social Support", ...selectedYears.reduce((acc, year) => {
-                            if (yearData[year]) {
-                              acc[year] = yearData[year].reduce((sum, item) => sum + item.socialSupport, 0) / yearData[year].length;
-                            }
-                            return acc;
-                          }, {}) },
-                          { name: "Health", ...selectedYears.reduce((acc, year) => {
-                            if (yearData[year]) {
-                              acc[year] = yearData[year].reduce((sum, item) => sum + item.health, 0) / yearData[year].length;
-                            }
-                            return acc;
-                          }, {}) },
-                          { name: "Freedom", ...selectedYears.reduce((acc, year) => {
-                            if (yearData[year]) {
-                              acc[year] = yearData[year].reduce((sum, item) => sum + item.freedom, 0) / yearData[year].length;
-                            }
-                            return acc;
-                          }, {}) },
-                          { name: "Generosity", ...selectedYears.reduce((acc, year) => {
-                            if (yearData[year]) {
-                              acc[year] = yearData[year].reduce((sum, item) => sum + item.generosity, 0) / yearData[year].length;
-                            }
-                            return acc;
-                          }, {}) },
-                          { name: "Perception of Corruption", ...selectedYears.reduce((acc, year) => {
-                            if (yearData[year]) {
-                              acc[year] = yearData[year].reduce((sum, item) => sum + item.corruption, 0) / yearData[year].length;
-                            }
-                            return acc;
-                          }, {}) },
-                        ]}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => value?.toFixed(2) || "N/A"} />
-                        <Legend />
-                        {selectedYears.map((year) => (
-                          <Bar 
-                            key={year} 
-                            dataKey={year} 
-                            name={`${year} Average`} 
-                            fill={yearColors[year]} 
-                          />
-                        ))}
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={[
-                          {
-                            name: "GDP",
-                            value:
-                              data.reduce((sum, item) => sum + item.gdp, 0) /
-                              data.length,
-                          },
-                          {
-                            name: "Social Support",
-                            value:
-                              data.reduce(
-                                (sum, item) => sum + item.socialSupport,
-                                0
-                              ) / data.length,
-                          },
-                          {
-                            name: "Health",
-                            value:
-                              data.reduce((sum, item) => sum + item.health, 0) /
-                              data.length,
-                          },
-                          {
-                            name: "Freedom",
-                            value:
-                              data.reduce((sum, item) => sum + item.freedom, 0) /
-                              data.length,
-                          },
-                          {
-                            name: "Generosity",
-                            value:
-                              data.reduce(
-                                (sum, item) => sum + item.generosity,
-                                0
-                              ) / data.length,
-                          },
-                          {
-                            name: "Perception of Corruption",
-                            value:
-                              data.reduce(
-                                (sum, item) => sum + item.corruption,
-                                0
-                              ) / data.length,
-                          },
-                        ]}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="name" />
-                        <YAxis />
-                        <Tooltip formatter={(value) => value.toFixed(2)} />
-                        <Legend />
-                        <Bar dataKey="value" name="Average Value">
-                          {[0, 1, 2, 3, 4, 5].map((index) => (
-                            <Cell key={`cell-${index}`} fill={colors[index]} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-1">
-                    GDP Impact on Happiness
-                    {!isComparing && ` (${activeYear})`}
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Relationship between GDP per capita and happiness scores
-                  </p>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ScatterChart
-                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                      >
-                        <CartesianGrid />
-                        <XAxis
-                          type="number"
-                          dataKey="gdp"
-                          name="GDP per Capita"
-                          label={{
-                            value: "GDP per Capita",
-                            position: "insideBottom",
-                            offset: -5,
-                          }}
-                        />
-                        <YAxis
-                          type="number"
-                          dataKey="score"
-                          name="Happiness Score"
-                          domain={[0, 10]}
-                          label={{
-                            value: "Happiness Score",
-                            angle: -90,
-                            position: "insideLeft",
-                          }}
-                        />
-                        <Tooltip
-                          cursor={{ strokeDasharray: "3 3" }}
-                          formatter={(value) => value.toFixed(2)}
-                          labelFormatter={(_, payload) => {
-                            if (payload && payload.length > 0) {
-                              return isComparing 
-                                ? `${payload[0].payload.country} (${payload[0].payload.year})`
-                                : payload[0].payload.country;
-                            }
-                            return "";
-                          }}
-                        />
-                        {isComparing ? (
-                          selectedYears.map(year => (
-                            <Scatter 
-                              key={year}
-                              name={`${year} Data`} 
-                              data={combinedData.filter(d => d.year === year)} 
-                              fill={yearColors[year]} 
-                            />
-                          ))
-                        ) : (
-                          <Scatter name="Countries" data={data} fill="#8884d8" />
-                        )}
-                        <Legend />
-                      </ScatterChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-1">
-                    Social Support Impact
-                    {!isComparing && ` (${activeYear})`}
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Relationship between social support and happiness scores
-                  </p>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ScatterChart
-                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                      >
-                        <CartesianGrid />
-                        <XAxis
-                          type="number"
-                          dataKey="socialSupport"
-                          name="Social Support"
-                          domain={[0, "dataMax"]}
-                          label={{
-                            value: "Social Support",
-                            position: "insideBottom",
-                            offset: -5,
-                          }}
-                        />
-                        <YAxis
-                          type="number"
-                          dataKey="score"
-                          name="Happiness Score"
-                          domain={[0, 10]}
-                          label={{
-                            value: "Happiness Score",
-                            angle: -90,
-                            position: "insideLeft",
-                          }}
-                        />
-                        <Tooltip
-                          cursor={{ strokeDasharray: "3 3" }}
-                          formatter={(value) => value.toFixed(2)}
-                          labelFormatter={(_, payload) => {
-                            if (payload && payload.length > 0) {
-                              return isComparing 
-                                ? `${payload[0].payload.country} (${payload[0].payload.year})`
-                                : payload[0].payload.country;
-                            }
-                            return "";
-                          }}
-                        />
-                        {isComparing ? (
-                          selectedYears.map(year => (
-                            <Scatter 
-                              key={year}
-                              name={`${year} Data`} 
-                              data={combinedData.filter(d => d.year === year)} 
-                              fill={yearColors[year]} 
-                            />
-                          ))
-                        ) : (
-                          <Scatter name="Countries" data={data} fill="#82ca9d" />
-                        )}
-                        <Legend />
-                      </ScatterChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* Country Comparison Tab */}
           {activeTab === "comparison" && (
@@ -1042,25 +879,27 @@ export default function HappinessDashboard() {
                   <div className="max-h-40 overflow-y-auto border rounded-md">
                     <ul className="divide-y divide-gray-200">
                       {combinedData
-                        .filter((item, index, self) => 
-                          index === self.findIndex(t => t.country === item.country)
+                        .filter(
+                          (item, index, self) =>
+                            index ===
+                            self.findIndex((t) => t.country === item.country)
                         )
                         .sort((a, b) => a.country.localeCompare(b.country))
                         .map((country) => (
-                        <li
-                          key={country.country}
-                          className={`px-4 py-2 hover:bg-gray-50 cursor-pointer ${
-                            selectedCountries.includes(country.country)
-                              ? "bg-blue-50"
-                              : ""
-                          }`}
-                          onClick={() =>
-                            toggleCountrySelection(country.country)
-                          }
-                        >
-                          {country.country}
-                        </li>
-                      ))}
+                          <li
+                            key={country.country}
+                            className={`px-4 py-2 hover:bg-gray-50 cursor-pointer ${
+                              selectedCountries.includes(country.country)
+                                ? "bg-blue-50"
+                                : ""
+                            }`}
+                            onClick={() =>
+                              toggleCountrySelection(country.country)
+                            }
+                          >
+                            {country.country}
+                          </li>
+                        ))}
                     </ul>
                   </div>
                 </div>
@@ -1072,37 +911,39 @@ export default function HappinessDashboard() {
                         <PolarGrid />
                         <PolarAngleAxis dataKey="factor" />
                         <PolarRadiusAxis angle={30} domain={[0, 2]} />
-                        {isComparing ? (
-                          // For comparison mode, include data for each country and year
-                          selectedCountries.flatMap(country => 
-                            selectedYears.map(year => {
-                              const key = `${country} (${year})`;
-                              const colorIndex = (selectedCountries.indexOf(country) * selectedYears.length + selectedYears.indexOf(year)) % colors.length;
-                              return (
-                                <Radar
-                                  key={key}
-                                  name={key}
-                                  dataKey={key}
-                                  stroke={colors[colorIndex]}
-                                  fill={colors[colorIndex]}
-                                  fillOpacity={0.2}
-                                />
-                              );
-                            })
-                          )
-                        ) : (
-                          // For single year mode
-                          selectedCountries.map((country, index) => (
-                            <Radar
-                              key={country}
-                              name={country}
-                              dataKey={country}
-                              stroke={colors[index % colors.length]}
-                              fill={colors[index % colors.length]}
-                              fillOpacity={0.2}
-                            />
-                          ))
-                        )}
+                        {isComparing
+                          ? // For comparison mode, include data for each country and year
+                            selectedCountries.flatMap((country) =>
+                              selectedYears.map((year) => {
+                                const key = `${country} (${year})`;
+                                const colorIndex =
+                                  (selectedCountries.indexOf(country) *
+                                    selectedYears.length +
+                                    selectedYears.indexOf(year)) %
+                                  colors.length;
+                                return (
+                                  <Radar
+                                    key={key}
+                                    name={key}
+                                    dataKey={key}
+                                    stroke={colors[colorIndex]}
+                                    fill={colors[colorIndex]}
+                                    fillOpacity={0.2}
+                                  />
+                                );
+                              })
+                            )
+                          : // For single year mode
+                            selectedCountries.map((country, index) => (
+                              <Radar
+                                key={country}
+                                name={country}
+                                dataKey={country}
+                                stroke={colors[index % colors.length]}
+                                fill={colors[index % colors.length]}
+                                fillOpacity={0.2}
+                              />
+                            ))}
                         <Legend />
                         <Tooltip
                           formatter={(value) => value?.toFixed(2) || "N/A"}
@@ -1130,30 +971,46 @@ export default function HappinessDashboard() {
                     <ResponsiveContainer width="100%" height="100%">
                       {isComparing ? (
                         <BarChart
-                          data={selectedCountries.flatMap(country => 
-                            selectedYears.map(year => {
-                              const countryData = yearData[year]?.find(item => item.country === country);
+                          data={selectedCountries.flatMap((country) =>
+                            selectedYears.map((year) => {
+                              const countryData = yearData[year]?.find(
+                                (item) => item.country === country
+                              );
                               return {
                                 country,
                                 year,
                                 score: countryData?.score || 0,
-                                label: `${country} (${year})`
+                                label: `${country} (${year})`,
                               };
                             })
                           )}
                           margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
                         >
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="label" angle={-45} textAnchor="end" height={80} />
+                          <XAxis
+                            dataKey="label"
+                            angle={-45}
+                            textAnchor="end"
+                            height={80}
+                          />
                           <YAxis domain={[0, 10]} />
                           <Tooltip formatter={(value) => value.toFixed(2)} />
                           <Legend />
                           <Bar dataKey="score" name="Happiness Score">
-                            {selectedCountries.flatMap(country => 
+                            {selectedCountries.flatMap((country) =>
                               selectedYears.map((year, yearIndex) => {
-                                const countryIndex = selectedCountries.indexOf(country);
-                                const colorIndex = (countryIndex * selectedYears.length + yearIndex) % colors.length;
-                                return <Cell key={`${country}-${year}`} fill={colors[colorIndex]} />;
+                                const countryIndex =
+                                  selectedCountries.indexOf(country);
+                                const colorIndex =
+                                  (countryIndex * selectedYears.length +
+                                    yearIndex) %
+                                  colors.length;
+                                return (
+                                  <Cell
+                                    key={`${country}-${year}`}
+                                    fill={colors[colorIndex]}
+                                  />
+                                );
                               })
                             )}
                           </Bar>
@@ -1196,80 +1053,148 @@ export default function HappinessDashboard() {
           {/* Correlation Tab */}
           {activeTab === "correlation" && (
             <div className="space-y-6">
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-semibold mb-1">
-                  GDP vs. Happiness Score
-                  {!isComparing && ` (${activeYear})`}
-                </h2>
-                <p className="text-sm text-gray-500 mb-4">
-                  Scatter plot showing relationship between economic prosperity
-                  and happiness
-                </p>
-                <div className="h-96">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart
-                      margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
-                    >
-                      <CartesianGrid />
-                      <XAxis
-                        type="number"
-                        dataKey="gdp"
-                        name="GDP per Capita"
-                        label={{
-                          value: "GDP per Capita",
-                          position: "insideBottom",
-                          offset: -5,
-                        }}
-                      />
-                      <YAxis
-                        type="number"
-                        dataKey="score"
-                        name="Happiness Score"
-                        domain={[0, 10]}
-                        label={{
-                          value: "Happiness Score",
-                          angle: -90,
-                          position: "insideLeft",
-                        }}
-                      />
-                      <Tooltip
-                        cursor={{ strokeDasharray: "3 3" }}
-                        formatter={(value) => value.toFixed(2)}
-                        labelFormatter={(_, payload) => {
-                          if (payload && payload.length > 0) {
-                            return isComparing 
-                              ? `${payload[0].payload.country} (${payload[0].payload.year})`
-                              : payload[0].payload.country;
-                          }
-                          return "";
-                        }}
-                      />
-                      {isComparing ? (
-                        selectedYears.map(year => (
-                          <Scatter 
-                            key={year}
-                            name={`${year} Data`} 
-                            data={combinedData.filter(d => d.year === year)} 
-                            fill={yearColors[year]} 
-                          />
-                        ))
-                      ) : (
-                        <Scatter name="Countries" data={combinedData} fill="#8884d8" />
-                      )}
-                      <Legend />
-                    </ScatterChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="mt-4">
-                  <p className="text-sm text-gray-600">
-                    This scatter plot shows the relationship between GDP per
-                    Capita and Happiness Score. There is generally a positive
-                    correlation, suggesting that economic prosperity contributes
-                    to happiness, but it's not the only factor.
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-xl font-semibold mb-1">
+                    GDP vs. Happiness Score
+                    {!isComparing && ` (${activeYear})`}
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Scatter plot showing relationship between economic
+                    prosperity and happiness
                   </p>
+                  <div className="h-96">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart
+                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                      >
+                        <CartesianGrid />
+                        <XAxis
+                          type="number"
+                          dataKey="gdp"
+                          name="GDP per Capita"
+                          label={{
+                            value: "GDP per Capita",
+                            position: "insideBottom",
+                            offset: -5,
+                          }}
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="score"
+                          name="Happiness Score"
+                          domain={[0, 10]}
+                          label={{
+                            value: "Happiness Score",
+                            angle: -90,
+                            position: "insideLeft",
+                            style: { textAnchor: 'middle' }
+                          }}
+                        />
+                        <Tooltip
+                          cursor={{ strokeDasharray: "3 3" }}
+                          formatter={(value) => value.toFixed(2)}
+                          labelFormatter={(_, payload) => {
+                            if (payload && payload.length > 0) {
+                              return isComparing
+                                ? `${payload[0].payload.country} (${payload[0].payload.year})`
+                                : payload[0].payload.country;
+                            }
+                            return "";
+                          }}
+                        />
+                        {isComparing ? (
+                          selectedYears.map((year) => (
+                            <Scatter
+                              key={year}
+                              name={`${year}`}
+                              data={combinedData.filter((d) => d.year === year)}
+                              fill={yearColors[year]}
+                            />
+                          ))
+                        ) : (
+                          <Scatter
+                            name="Countries"
+                            data={combinedData}
+                            fill={colors[0]}
+                          />
+                        )}
+                        {isComparing && <Legend  verticalAlign="top" height={36} />}
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-xl font-semibold mb-1">
+                    Social Support vs. Happiness Score
+                    {!isComparing && ` (${activeYear})`}
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Scatter plot showing relationship between Social Support and
+                    happiness
+                  </p>
+                  <div className="h-96">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart
+                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                      >
+                        <CartesianGrid />
+                        <XAxis
+                          type="number"
+                          dataKey="socialSupport"
+                          name="Social Support"
+                          label={{
+                            value: "Social Support",
+                            position: "insideBottom",
+                            offset: -5,
+                          }}
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="score"
+                          name="Happiness Score"
+                          domain={[0, 10]}
+                          label={{
+                            value: "Happiness Score",
+                            angle: -90,
+                            position: "insideLeft",
+                          }}
+                        />
+                        <Tooltip
+                          cursor={{ strokeDasharray: "3 3" }}
+                          formatter={(value) => value.toFixed(2)}
+                          labelFormatter={(_, payload) => {
+                            if (payload && payload.length > 0) {
+                              return isComparing
+                                ? `${payload[0].payload.country} (${payload[0].payload.year})`
+                                : payload[0].payload.country;
+                            }
+                            return "";
+                          }}
+                        />
+                        {isComparing ? (
+                          selectedYears.map((year) => (
+                            <Scatter
+                              key={year}
+                              name={`${year}`}
+                              data={combinedData.filter((d) => d.year === year)}
+                              fill={yearColors[year]}
+                            />
+                          ))
+                        ) : (
+                          <Scatter
+                            name="Countries"
+                            data={combinedData}
+                            fill={colors[1]}
+                          />
+                        )}
+                        {isComparing && <Legend  verticalAlign="top" height={36} />}
+                        </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-lg shadow">
                   <h2 className="text-xl font-semibold mb-1">
@@ -1312,7 +1237,7 @@ export default function HappinessDashboard() {
                           formatter={(value) => value.toFixed(2)}
                           labelFormatter={(_, payload) => {
                             if (payload && payload.length > 0) {
-                              return isComparing 
+                              return isComparing
                                 ? `${payload[0].payload.country} (${payload[0].payload.year})`
                                 : payload[0].payload.country;
                             }
@@ -1320,19 +1245,23 @@ export default function HappinessDashboard() {
                           }}
                         />
                         {isComparing ? (
-                          selectedYears.map(year => (
-                            <Scatter 
+                          selectedYears.map((year) => (
+                            <Scatter
                               key={year}
-                              name={`${year} Data`} 
-                              data={combinedData.filter(d => d.year === year)} 
-                              fill={yearColors[year]} 
+                              name={`${year}`}
+                              data={combinedData.filter((d) => d.year === year)}
+                              fill={yearColors[year]}
                             />
                           ))
                         ) : (
-                          <Scatter name="Countries" data={data} fill="#ffc658" />
+                          <Scatter
+                            name="Countries"
+                            data={data}
+                            fill={colors[2]}
+                          />
                         )}
-                        <Legend />
-                      </ScatterChart>
+                        {isComparing && <Legend  verticalAlign="top" height={36} />}
+                        </ScatterChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
@@ -1378,7 +1307,7 @@ export default function HappinessDashboard() {
                           formatter={(value) => value.toFixed(2)}
                           labelFormatter={(_, payload) => {
                             if (payload && payload.length > 0) {
-                              return isComparing 
+                              return isComparing
                                 ? `${payload[0].payload.country} (${payload[0].payload.year})`
                                 : payload[0].payload.country;
                             }
@@ -1386,18 +1315,163 @@ export default function HappinessDashboard() {
                           }}
                         />
                         {isComparing ? (
-                          selectedYears.map(year => (
-                            <Scatter 
+                          selectedYears.map((year) => (
+                            <Scatter
                               key={year}
-                              name={`${year} Data`} 
-                              data={combinedData.filter(d => d.year === year)} 
-                              fill={yearColors[year]} 
+                              name={`${year}`}
+                              data={combinedData.filter((d) => d.year === year)}
+                              fill={yearColors[year]}
                             />
                           ))
                         ) : (
-                          <Scatter name="Countries" data={data} fill="#82ca9d" />
+                          <Scatter
+                            name="Countries"
+                            data={data}
+                            fill={colors[3]}
+                          />
                         )}
-                        <Legend />
+                        {isComparing && <Legend  verticalAlign="top" height={36} />}
+                      </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-xl font-semibold mb-1">
+                    Generosity vs. Happiness
+                    {!isComparing && ` (${activeYear})`}
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Impact of generosity on happiness
+                  </p>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart
+                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                      >
+                        <CartesianGrid />
+                        <XAxis
+                          type="number"
+                          dataKey="generosity"
+                          name="Generosity"
+                          domain={[0, "dataMax"]}
+                          label={{
+                            value: "Generosity",
+                            position: "insideBottom",
+                            offset: -5,
+                          }}
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="score"
+                          name="Happiness Score"
+                          domain={[0, 10]}
+                          label={{
+                            value: "Happiness Score",
+                            angle: -90,
+                            position: "insideLeft",
+                          }}
+                        />
+                        <Tooltip
+                          cursor={{ strokeDasharray: "3 3" }}
+                          formatter={(value) => value.toFixed(2)}
+                          labelFormatter={(_, payload) => {
+                            if (payload && payload.length > 0) {
+                              return isComparing
+                                ? `${payload[0].payload.country} (${payload[0].payload.year})`
+                                : payload[0].payload.country;
+                            }
+                            return "";
+                          }}
+                        />
+                        {isComparing ? (
+                          selectedYears.map((year) => (
+                            <Scatter
+                              key={year}
+                              name={`${year}`}
+                              data={combinedData.filter((d) => d.year === year)}
+                              fill={yearColors[year]}
+                            />
+                          ))
+                        ) : (
+                          <Scatter
+                            name="Countries"
+                            data={data}
+                            fill={colors[4]}
+                          />
+                        )}
+                        {isComparing && <Legend  verticalAlign="top" height={36} />}
+                        </ScatterChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-xl font-semibold mb-1">
+                    Perception of Corrpuption vs. Happiness
+                    {!isComparing && ` (${activeYear})`}
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Relationship between Perception of Corruption and happiness
+                  </p>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ScatterChart
+                        margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+                      >
+                        <CartesianGrid />
+                        <XAxis
+                          type="number"
+                          dataKey="corruption"
+                          name="Perception of Corruption"
+                          domain={[0, "dataMax"]}
+                          label={{
+                            value: "Perception of Corruption",
+                            position: "insideBottom",
+                            offset: -5,
+                          }}
+                        />
+                        <YAxis
+                          type="number"
+                          dataKey="score"
+                          name="Happiness Score"
+                          domain={[0, 10]}
+                          label={{
+                            value: "Happiness Score",
+                            angle: -90,
+                            position: "insideLeft",
+                          }}
+                        />
+                        <Tooltip
+                          cursor={{ strokeDasharray: "3 3" }}
+                          formatter={(value) => value.toFixed(2)}
+                          labelFormatter={(_, payload) => {
+                            if (payload && payload.length > 0) {
+                              return isComparing
+                                ? `${payload[0].payload.country} (${payload[0].payload.year})`
+                                : payload[0].payload.country;
+                            }
+                            return "";
+                          }}
+                        />
+                        {isComparing ? (
+                          selectedYears.map((year) => (
+                            <Scatter
+                              key={year}
+                              name={`${year}`}
+                              data={combinedData.filter((d) => d.year === year)}
+                              fill={yearColors[year]}
+                            />
+                          ))
+                        ) : (
+                          <Scatter
+                            name="Countries"
+                            data={data}
+                            fill={colors[5]}
+                          />
+                        )}
                       </ScatterChart>
                     </ResponsiveContainer>
                   </div>
@@ -1428,7 +1502,7 @@ export default function HappinessDashboard() {
                                 );
                               }
                               return acc;
-                            }, {})
+                            }, {}),
                           },
                           {
                             factor: "Social Support",
@@ -1440,7 +1514,7 @@ export default function HappinessDashboard() {
                                 );
                               }
                               return acc;
-                            }, {})
+                            }, {}),
                           },
                           {
                             factor: "Health",
@@ -1452,7 +1526,7 @@ export default function HappinessDashboard() {
                                 );
                               }
                               return acc;
-                            }, {})
+                            }, {}),
                           },
                           {
                             factor: "Freedom",
@@ -1464,7 +1538,7 @@ export default function HappinessDashboard() {
                                 );
                               }
                               return acc;
-                            }, {})
+                            }, {}),
                           },
                           {
                             factor: "Generosity",
@@ -1476,7 +1550,7 @@ export default function HappinessDashboard() {
                                 );
                               }
                               return acc;
-                            }, {})
+                            }, {}),
                           },
                           {
                             factor: "Perception of Corruption",
@@ -1488,7 +1562,7 @@ export default function HappinessDashboard() {
                                 );
                               }
                               return acc;
-                            }, {})
+                            }, {}),
                           },
                         ]}
                         margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
@@ -1496,14 +1570,16 @@ export default function HappinessDashboard() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="factor" />
                         <YAxis domain={[-1, 1]} />
-                        <Tooltip formatter={(value) => value?.toFixed(2) || "N/A"} />
+                        <Tooltip
+                          formatter={(value) => value?.toFixed(2) || "N/A"}
+                        />
                         <Legend />
-                        {selectedYears.map(year => (
-                          <Bar 
-                            key={year} 
-                            dataKey={year} 
-                            name={`${year} Correlation`} 
-                            fill={yearColors[year]} 
+                        {selectedYears.map((year) => (
+                          <Bar
+                            key={year}
+                            dataKey={year}
+                            name={`${year} Correlation`}
+                            fill={yearColors[year]}
                           />
                         ))}
                       </BarChart>
@@ -1587,227 +1663,473 @@ export default function HappinessDashboard() {
           {/* Trends Over Time Tab */}
           {activeTab === "trends" && (
             <>
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-lg shadow">
-                <h2 className="text-xl font-semibold mb-1">
-                  Global Happiness Trends
-                </h2>
-                <p className="text-sm text-gray-500 mb-4">
-                  Average happiness score across all countries by year
-                </p>
-                <div className="h-80">
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-xl font-semibold mb-1">
+                    Global Happiness Trends
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Average happiness score across all countries by year
+                  </p>
+                  <div className="h-80">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={averageScoreByYear}
-                      margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="year" />
-                        <YAxis domain={[0, 10]} />
-                        <Tooltip formatter={(value) => value.toFixed(2)} />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="score"
-                          stroke="#8884d8"
-                          name="Average Happiness Score"
-                          strokeWidth={2}
-                          dot={{ r: 6 }}
-                          activeDot={{ r: 8 }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+      <LineChart
+        data={scoresByYear}
+        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="year" />
+        <YAxis domain={[0, 10]} />
+        <Tooltip formatter={customTooltipFormatterTrends} />
+        <Legend />
+        <Line
+          type="monotone"
+          dataKey="average"
+          stroke="#8884d8"
+          name="Average Score"
+          strokeWidth={2}
+          dot={{ r: 5 }}
+          activeDot={{ r: 7 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="highest"
+          stroke="#82ca9d"
+          name="Highest Score"
+          strokeWidth={2}
+          dot={{ r: 5 }}
+          activeDot={{ r: 7 }}
+        />
+        <Line
+          type="monotone"
+          dataKey="lowest"
+          stroke="#ff8042"
+          name="Lowest Score"
+          strokeWidth={2}
+          dot={{ r: 5 }}
+          activeDot={{ r: 7 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
                   </div>
                 </div>
 
-              {selectedCountries.length > 0 && (
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-1">
-                    Country Happiness Trends
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Happiness score trends for selected countries over time
-                  </p>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="year" 
-                          type="category"
-                          allowDuplicatedCategory={false}
-                        />
-                        <YAxis domain={[0, 10]} />
-                        <Tooltip formatter={(value) => value.toFixed(2)} />
-                        <Legend />
-                        {selectedCountries.map((country, index) => {
-                          const countryData = trendData.filter(d => d.country === country);
-                          return (
-                            <Line
-                              key={country}
-                              data={countryData}
-                              type="monotone"
-                              dataKey="score"
-                              name={country}
-                              stroke={colors[index % colors.length]}
-                              strokeWidth={2}
-                              dot={{ r: 5 }}
-                              activeDot={{ r: 7 }}
-                            />
-                          );
-                        })}
-                      </LineChart>
-                    </ResponsiveContainer>
+                {selectedCountries.length > 0 && (
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-semibold mb-1">
+                      Country Happiness Trends
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                      Happiness score trends for selected countries over time
+                    </p>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis
+                            dataKey="year"
+                            type="category"
+                            allowDuplicatedCategory={false}
+                          />
+                          <YAxis domain={[0, 10]} />
+                          <Tooltip formatter={(value) => value.toFixed(2)} />
+                          <Legend />
+                          {selectedCountries.map((country, index) => {
+                            const countryData = trendData.filter(
+                              (d) => d.country === country
+                            );
+                            return (
+                              <Line
+                                key={country}
+                                data={countryData}
+                                type="monotone"
+                                dataKey="score"
+                                name={country}
+                                stroke={colors[index % colors.length]}
+                                strokeWidth={2}
+                                dot={{ r: 5 }}
+                                activeDot={{ r: 7 }}
+                              />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-1">
-                    GDP Factor Trends
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    How GDP contribution to happiness has changed over time
-                  </p>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart
-                        data={availableYears.map(year => {
-                          if (yearData[year] && yearData[year].length > 0) {
-                            return {
-                              year,
-                              avgGDP: yearData[year].reduce((sum, item) => sum + item.gdp, 0) / yearData[year].length,
-                              correlation: calculateCorrelation(
-                                yearData[year].map(d => d.gdp),
-                                yearData[year].map(d => d.score)
-                              )
-                            };
-                          }
-                          return { year, avgGDP: 0, correlation: 0 };
-                        })}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="year" />
-                        <YAxis yAxisId="left" />
-                        <YAxis yAxisId="right" orientation="right" domain={[-1, 1]} />
-                        <Tooltip formatter={(value) => value.toFixed(2)} />
-                        <Legend />
-                        <Bar yAxisId="left" dataKey="avgGDP" name="Average GDP Factor" fill="#8884d8" />
-                        <Line yAxisId="right" type="monotone" dataKey="correlation" name="Correlation with Happiness" stroke="#ff7300" />
-                      </ComposedChart>
-                    </ResponsiveContainer>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-semibold mb-1">
+                      GDP Factor Trends
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                      How GDP contribution to happiness has changed over time
+                    </p>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart
+                          data={availableYears.map((year) => {
+                            if (yearData[year] && yearData[year].length > 0) {
+                              return {
+                                year,
+                                avgGDP:
+                                  yearData[year].reduce(
+                                    (sum, item) => sum + item.gdp,
+                                    0
+                                  ) / yearData[year].length,
+                                correlation: calculateCorrelation(
+                                  yearData[year].map((d) => d.gdp),
+                                  yearData[year].map((d) => d.score)
+                                ),
+                              };
+                            }
+                            return { year, avgGDP: 0, correlation: 0 };
+                          })}
+                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" />
+                          <YAxis yAxisId="left" />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            domain={[-1, 1]}
+                          />
+                          <Tooltip formatter={(value) => value.toFixed(2)} />
+                          <Legend />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="avgGDP"
+                            name="Average GDP Factor"
+                            fill={colors[0]}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="correlation"
+                            name="Correlation with Happiness"
+                            stroke="#ff7300"
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-semibold mb-1">
+                      Social Support Trends
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                      How social support contribution to happiness has changed
+                      over time
+                    </p>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart
+                          data={availableYears.map((year) => {
+                            if (yearData[year] && yearData[year].length > 0) {
+                              return {
+                                year,
+                                avgSupport:
+                                  yearData[year].reduce(
+                                    (sum, item) => sum + item.socialSupport,
+                                    0
+                                  ) / yearData[year].length,
+                                correlation: calculateCorrelation(
+                                  yearData[year].map((d) => d.socialSupport),
+                                  yearData[year].map((d) => d.score)
+                                ),
+                              };
+                            }
+                            return { year, avgSupport: 0, correlation: 0 };
+                          })}
+                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" />
+                          <YAxis yAxisId="left" />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            domain={[-1, 1]}
+                          />
+                          <Tooltip formatter={(value) => value.toFixed(2)} />
+                          <Legend />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="avgSupport"
+                            name="Average Social Support"
+                            fill={colors[1]}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="correlation"
+                            name="Correlation with Happiness"
+                            stroke={"#ff7300"}
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-1">
-                    Social Support Trends
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    How social support contribution to happiness has changed over time
-                  </p>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart
-                        data={availableYears.map(year => {
-                          if (yearData[year] && yearData[year].length > 0) {
-                            return {
-                              year,
-                              avgSupport: yearData[year].reduce((sum, item) => sum + item.socialSupport, 0) / yearData[year].length,
-                              correlation: calculateCorrelation(
-                                yearData[year].map(d => d.socialSupport),
-                                yearData[year].map(d => d.score)
-                              )
-                            };
-                          }
-                          return { year, avgSupport: 0, correlation: 0 };
-                        })}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="year" />
-                        <YAxis yAxisId="left" />
-                        <YAxis yAxisId="right" orientation="right" domain={[-1, 1]} />
-                        <Tooltip formatter={(value) => value.toFixed(2)} />
-                        <Legend />
-                        <Bar yAxisId="left" dataKey="avgSupport" name="Average Social Support" fill="#82ca9d" />
-                        <Line yAxisId="right" type="monotone" dataKey="correlation" name="Correlation with Happiness" stroke="#ff7300" />
-                      </ComposedChart>
-                    </ResponsiveContainer>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-semibold mb-1">
+                      Health Factor Trends
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                      How Health contribution to happiness has changed over time
+                    </p>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart
+                          data={availableYears.map((year) => {
+                            if (yearData[year] && yearData[year].length > 0) {
+                              return {
+                                year,
+                                health:
+                                  yearData[year].reduce(
+                                    (sum, item) => sum + item.health,
+                                    0
+                                  ) / yearData[year].length,
+                                correlation: calculateCorrelation(
+                                  yearData[year].map((d) => d.health),
+                                  yearData[year].map((d) => d.score)
+                                ),
+                              };
+                            }
+                            return { year, health: 0, correlation: 0 };
+                          })}
+                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" />
+                          <YAxis yAxisId="left" />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            domain={[-1, 1]}
+                          />
+                          <Tooltip formatter={(value) => value.toFixed(2)} />
+                          <Legend />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="health"
+                            name="Average Health"
+                            fill={colors[2]}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="correlation"
+                            name="Correlation with Happiness"
+                            stroke="#ff7300"
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-semibold mb-1">
+                      Freedom Trends
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                      How freedom contribution to happiness has changed
+                      over time
+                    </p>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart
+                          data={availableYears.map((year) => {
+                            if (yearData[year] && yearData[year].length > 0) {
+                              return {
+                                year,
+                                freedom:
+                                  yearData[year].reduce(
+                                    (sum, item) => sum + item.freedom,
+                                    0
+                                  ) / yearData[year].length,
+                                correlation: calculateCorrelation(
+                                  yearData[year].map((d) => d.freedom),
+                                  yearData[year].map((d) => d.score)
+                                ),
+                              };
+                            }
+                            return { year, freedom: 0, correlation: 0 };
+                          })}
+                          margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="year" />
+                          <YAxis yAxisId="left" />
+                          <YAxis
+                            yAxisId="right"
+                            orientation="right"
+                            domain={[-1, 1]}
+                          />
+                          <Tooltip formatter={(value) => value.toFixed(2)} />
+                          <Legend />
+                          <Bar
+                            yAxisId="left"
+                            dataKey="freedom"
+                            name="Average Freedom"
+                            fill={colors[3]}
+                          />
+                          <Line
+                            yAxisId="right"
+                            type="monotone"
+                            dataKey="correlation"
+                            name="Correlation with Happiness"
+                            stroke={"#ff7300"}
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
+
+
+                {selectedCountries.length > 0 && (
+                  <div className="bg-white p-6 rounded-lg shadow">
+                    <h2 className="text-xl font-semibold mb-1">
+                      Factor Evolution for Selected Countries
+                    </h2>
+                    <p className="text-sm text-gray-500 mb-4">
+                      How different happiness factors have evolved for selected
+                      countries
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedCountries.map((country, index) => (
+                        <div key={country} className="h-80">
+                          <h3 className="text-lg font-medium mb-2">
+                            {country}
+                          </h3>
+                          <ResponsiveContainer width="100%" height="90%">
+                            <RadarChart
+                              outerRadius={90}
+                              data={availableYears.map((year) => {
+                                const countryData = yearData[year]?.find(
+                                  (item) => item.country === country
+                                );
+                                if (countryData) {
+                                  return {
+                                    year,
+                                    GDP: countryData.gdp,
+                                    "Social Support": countryData.socialSupport,
+                                    Health: countryData.health,
+                                    Freedom: countryData.freedom,
+                                    Generosity: countryData.generosity,
+                                    Corruption: countryData.corruption,
+                                  };
+                                }
+                                return { year };
+                              })}
+                            >
+                              <PolarGrid />
+                              <PolarAngleAxis dataKey="year" />
+                              <PolarRadiusAxis angle={30} domain={[0, 2]} />
+                              <Radar
+                                name="GDP"
+                                dataKey="GDP"
+                                stroke="#8884d8"
+                                fill="#8884d8"
+                                fillOpacity={0.2}
+                              />
+                              <Radar
+                                name="Social Support"
+                                dataKey="Social Support"
+                                stroke="#82ca9d"
+                                fill="#82ca9d"
+                                fillOpacity={0.2}
+                              />
+                              <Radar
+                                name="Health"
+                                dataKey="Health"
+                                stroke="#ffc658"
+                                fill="#ffc658"
+                                fillOpacity={0.2}
+                              />
+                              <Radar
+                                name="Freedom"
+                                dataKey="Freedom"
+                                stroke="#ff8042"
+                                fill="#ff8042"
+                                fillOpacity={0.2}
+                              />
+                              <Radar
+                                name="Generosity"
+                                dataKey="Generosity"
+                                stroke="#ff6361"
+                                fill="#ff6361"
+                                fillOpacity={0.2}
+                              />
+                              <Radar
+                                name="Corruption"
+                                dataKey="Corruption"
+                                stroke="#bc5090"
+                                fill="#bc5090"
+                                fillOpacity={0.2}
+                              />
+                              <Legend />
+                              <Tooltip
+                                formatter={(value) =>
+                                  value?.toFixed(2) || "N/A"
+                                }
+                              />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-
-              {selectedCountries.length > 0 && (
-                <div className="bg-white p-6 rounded-lg shadow">
-                  <h2 className="text-xl font-semibold mb-1">
-                    Factor Evolution for Selected Countries
-                  </h2>
-                  <p className="text-sm text-gray-500 mb-4">
-                    How different happiness factors have evolved for selected countries
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {selectedCountries.map((country, index) => (
-                      <div key={country} className="h-80">
-                        <h3 className="text-lg font-medium mb-2">{country}</h3>
-                        <ResponsiveContainer width="100%" height="90%">
-                          <RadarChart 
-                            outerRadius={90} 
-                            data={availableYears.map(year => {
-                              const countryData = yearData[year]?.find(item => item.country === country);
-                              if (countryData) {
-                                return {
-                                  year,
-                                  GDP: countryData.gdp,
-                                  "Social Support": countryData.socialSupport,
-                                  Health: countryData.health,
-                                  Freedom: countryData.freedom,
-                                  Generosity: countryData.generosity,
-                                  "Corruption": countryData.corruption,
-                                };
-                              }
-                              return { year };
-                            })}
-                          >
-                            <PolarGrid />
-                            <PolarAngleAxis dataKey="year" />
-                            <PolarRadiusAxis angle={30} domain={[0, 2]} />
-                            <Radar name="GDP" dataKey="GDP" stroke="#8884d8" fill="#8884d8" fillOpacity={0.2} />
-                            <Radar name="Social Support" dataKey="Social Support" stroke="#82ca9d" fill="#82ca9d" fillOpacity={0.2} />
-                            <Radar name="Health" dataKey="Health" stroke="#ffc658" fill="#ffc658" fillOpacity={0.2} />
-                            <Radar name="Freedom" dataKey="Freedom" stroke="#ff8042" fill="#ff8042" fillOpacity={0.2} />
-                            <Radar name="Generosity" dataKey="Generosity" stroke="#ff6361" fill="#ff6361" fillOpacity={0.2} />
-                            <Radar name="Corruption" dataKey="Corruption" stroke="#bc5090" fill="#bc5090" fillOpacity={0.2} />
-                            <Legend />
-                            <Tooltip formatter={(value) => value?.toFixed(2) || "N/A"} />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
             </>
           )}
         </div>
       </main>
       <div className="block lg:hidden max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         {/* This div is visible only on mobile devices */}
-        <p className="px-4 text-base text-gray-700">Please view this on laptop/desktop screens for best experience.</p>
+        <p className="px-4 text-base text-gray-700">
+          Please view this on laptop/desktop screens for best experience.
+        </p>
       </div>
       {/* Footer */}
       <footer className="bg-white shadow mt-8">
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <p className="text-center text-sm text-gray-500">
-            Data source: World Happiness Report (2020-2024) |  <a href="https://www.kaggle.com/datasets/samithsachidanandan/world-happiness-report-2020-2024" target="__blank" className="underline">Kaggle</a> | <a href="https://worldhappiness.report/" target="__blank" className="underline">Report</a>
+            Data source: World Happiness Report (2020-2024) |{" "}
+            <a
+              href="https://www.kaggle.com/datasets/samithsachidanandan/world-happiness-report-2020-2024"
+              target="__blank"
+              className="underline"
+            >
+              Kaggle
+            </a>{" "}
+            |{" "}
+            <a
+              href="https://worldhappiness.report/"
+              target="__blank"
+              className="underline"
+            >
+              Report
+            </a>
           </p>
           <p className="text-center text-sm text-gray-500">
-            Made by <a href="https://www.suryaanshrathinam.com/" className="underline" target="__blank">Suryaansh Rathinam</a>
+            Made by{" "}
+            <a
+              href="https://www.suryaanshrathinam.com/"
+              className="underline"
+              target="__blank"
+            >
+              Suryaansh Rathinam
+            </a>
           </p>
         </div>
       </footer>
