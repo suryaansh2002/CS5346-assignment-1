@@ -1,90 +1,73 @@
 # World Happiness Dashboard
 
-This project is a web application that visualizes the World Happiness Report data from 2020 to 2024. It provides an interactive dashboard to explore various happiness metrics across different countries and years.
+Welcome to the World Happiness Dashboard, an interactive visualization tool designed to explore the World Happiness Report data from 2020 to 2024. This project is developed as part of Assignment 1 for the CS5346 course: 'Information Visualisation' at the National University of Singapore (NUS).
 
-## Table of Contents
+## Project Overview
 
-- [Getting Started](#getting-started)
-- [Features](#features)
-- [Data Source](#data-source)
-- [Deployment](#deployment)
-- [Technologies Used](#technologies-used)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Getting Started
-
-To get a local copy up and running, follow these steps.
-
-### Prerequisites
-
-Ensure you have the following installed on your machine:
-
-- Node.js
-- npm or yarn
-
-### Installation
-
-1. Clone the repository:
-
-   ```bash
-   git clone https://github.com/your-username/world-happiness-dashboard.git
-   cd world-happiness-dashboard
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
-
-3. Run the development server:
-
-   ```bash
-   npm run dev
-   # or
-   yarn dev
-   ```
-
-4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The World Happiness Dashboard provides a comprehensive view of various factors contributing to the happiness scores of countries worldwide. It allows users to interactively explore and compare data across different years and countries, offering insights into how different factors like GDP, social support, health, and perceptions of corruption influence happiness.
 
 ## Features
 
-- **Interactive Charts**: Visualize happiness metrics using bar charts, scatter plots, and radar charts.
-- **Yearly Data**: Explore data from 2020 to 2024.
-- **Country Comparison**: Compare happiness metrics across selected countries.
+- **Interactive Visualizations**: Utilize various chart types such as bar charts, line charts, scatter plots, and radar charts to visualize data.
+- **Year and Country Selection**: Easily switch between different years and select specific countries to focus on.
+- **Comparison Mode**: Compare happiness factors across multiple years.
+- **Correlation Analysis**: Analyze the correlation between happiness scores and various factors.
+- **Responsive Design**: Optimized for both desktop and mobile viewing.
 
 ## Data Source
 
-The data used in this project is sourced from the [World Happiness Report 2020-2024](https://www.kaggle.com/datasets/samithsachidanandan/world-happiness-report-2020-2024).
+The data used in this project is sourced from the [World Happiness Report](https://worldhappiness.report/) and is available on [Kaggle](https://www.kaggle.com/datasets/samithsachidanandan/world-happiness-report-2020-2024).
 
 ## Deployment
 
-The application is deployed on Vercel and can be accessed at [https://cs-5346-assignment-1.vercel.app/](https://cs-5346-assignment-1.vercel.app/).
+The project is deployed and can be accessed at: [World Happiness Dashboard](https://cs-5346-assignment-1.suryaanshrathinam.com/)
+
+## Installation
+
+To run this project locally, follow these steps:
+
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd <repository-directory>
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+
+4. **Open your browser** and navigate to `http://localhost:3000` to view the dashboard.
+
+## Usage
+
+- **Select Year**: Use the year selector to view data for a specific year.
+- **Compare Years**: Toggle the comparison mode to analyze trends over multiple years.
+- **Select Countries**: Click on countries to add or remove them from the analysis.
+- **View Correlations**: Explore the correlation analysis section to understand the impact of different factors on happiness.
+
+## Code Structure
+
+- **`src/pages/index.js`**: Main component rendering the dashboard and handling data fetching and state management.
+- **`src/data/world_happiness.json`**: Contains the happiness data used for visualization.
 
 ## Technologies Used
 
-- **Next.js**: A React framework for server-side rendering and static site generation.
-- **Recharts**: A charting library for React to create interactive data visualizations.
-- **PapaParse**: A library for parsing CSV files in JavaScript.
-- **Tailwind CSS**: A utility-first CSS framework for styling.
+- **React**: For building the user interface.
+- **Recharts**: For creating interactive charts and visualizations.
+- **PapaParse**: For parsing CSV data.
+- **Next.js**: For server-side rendering and static site generation.
 
-## Contributing
+## Contributors
 
-Contributions are welcome! Please follow these steps:
+- **Suryaansh Rathinam**: [Website](https://www.suryaanshrathinam.com/)
 
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/YourFeature`).
-3. Commit your changes (`git commit -m 'Add some feature'`).
-4. Push to the branch (`git push origin feature/YourFeature`).
-5. Open a pull request.
 
-## License
+## Acknowledgments
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-**Note**: This README file is a template and should be customized with your specific project details, such as the repository URL and any additional setup instructions.
+Special thanks to the CS5346 course instructors and the World Happiness Report team for providing the data and inspiration for this project.
